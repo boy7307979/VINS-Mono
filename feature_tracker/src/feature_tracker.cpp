@@ -34,6 +34,16 @@ FeatureTracker::FeatureTracker()
 {
 }
 
+void FeatureTracker::init() {
+#if FEATURE_TRACKER_USE_CUDA
+     g_tracker = cv::cuda::SparsePyrLKOpticalFlow::create();
+     g_detector.resize(MAX_CNT + 1);
+     for(int i = 1; i < MAX_CNT + 1; ++i) {
+         g_detector[i] = cv::cuda::createGoodFeaturesToTrackDetector(CV_8U, i, 0.01, MIN_DIST);
+     }
+#endif
+}
+
 void FeatureTracker::setMask()
 {
     if(FISHEYE)
@@ -114,7 +124,35 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         vector<uchar> status;
         vector<float> err;
         Tracer::TraceBegin("LK");
+#if FEATURE_TRACKER_USE_CUDA
+        g_cur_img.upload(cur_img);
+        g_forw_img.upload(forw_img);
+        cv::Mat tmp_cur_pts(1, cur_pts.size(), CV_32FC2);
+        for(int i = 0, n = tmp_cur_pts.cols; i < n; ++i) {
+            tmp_cur_pts.at<cv::Vec2f>(0, i)[0] = cur_pts[i].x;
+            tmp_cur_pts.at<cv::Vec2f>(0, i)[1] = cur_pts[i].y;
+        }
+        g_cur_pts.upload(tmp_cur_pts);
+
+        g_tracker->calc(g_cur_img, g_forw_img, g_cur_pts, g_forw_pts, g_status);
+
+        cv::Mat tmp_forw_pts;
+        g_forw_pts.download(tmp_forw_pts);
+        forw_pts.resize(tmp_forw_pts.cols);
+        for(int i = 0, n = tmp_forw_pts.cols; i < n; ++i) {
+            cv::Vec2f p = tmp_forw_pts.at<cv::Vec2f>(0, i);
+            forw_pts[i].x = p[0];
+            forw_pts[i].y = p[1];
+        }
+
+        cv::Mat tmp_status;
+        g_status.download(tmp_status);
+        status.resize(tmp_status.cols);
+        for(int i = 0, n = tmp_status.cols; i < n; ++i)
+            status[i] = tmp_status.at<uchar>(0, i);
+#else
         cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3);
+#endif
         Tracer::TraceEnd();
 
         for (int i = 0; i < int(forw_pts.size()); i++)
@@ -151,8 +189,24 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 cout << "mask type wrong " << endl;
             if (mask.size() != forw_img.size())
                 cout << "wrong size " << endl;
+
             Tracer::TraceBegin("GFTT");
+#if FEATURE_TRACKER_USE_CUDA
+            g_forw_img.upload(forw_img);
+            g_mask.upload(mask);
+            g_detector[n_max_cnt]->detect(g_forw_img, g_corners, g_mask);
+            cv::Mat c_corners;
+            g_corners.download(c_corners);
+            int n = std::min(n_max_cnt, c_corners.cols);
+            n_pts.resize(n);
+            for(int i = 0; i < n; ++i) {
+                cv::Vec2f p = c_corners.at<cv::Vec2f>(0, i);
+                n_pts[i].x = p[0];
+                n_pts[i].y = p[1];
+            }
+#else
             cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
+#endif
             Tracer::TraceEnd();
         }
         else

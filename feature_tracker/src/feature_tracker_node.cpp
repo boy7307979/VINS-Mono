@@ -33,6 +33,11 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         first_image_flag = false;
         first_image_time = img_msg->header.stamp.toSec();
         last_image_time = img_msg->header.stamp.toSec();
+        for (int i = 0; i < NUM_OF_CAM; i++)
+        {
+            trackerData[i].init();
+        }
+
         return;
     }
     // detect unstable camera stream

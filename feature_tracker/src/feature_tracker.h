@@ -15,7 +15,7 @@
 
 #include "parameters.h"
 #include "tic_toc.h"
-
+#define FEATURE_TRACKER_USE_CUDA 0
 using namespace std;
 using namespace camodocal;
 using namespace Eigen;
@@ -29,6 +29,7 @@ class FeatureTracker
 {
   public:
     FeatureTracker();
+    void init();
 
     void readImage(const cv::Mat &_img,double _cur_time);
 
@@ -62,4 +63,10 @@ class FeatureTracker
     double prev_time;
 
     static int n_id;
+#if FEATURE_TRACKER_USE_CUDA
+    cv::cuda::GpuMat g_forw_img, g_corners, g_mask;
+    cv::cuda::GpuMat g_cur_img, g_cur_pts, g_forw_pts, g_status;
+    cv::Ptr<cv::cuda::SparsePyrLKOpticalFlow> g_tracker;
+    std::vector<cv::Ptr<cv::cuda::CornersDetector>> g_detector;
+#endif
 };
