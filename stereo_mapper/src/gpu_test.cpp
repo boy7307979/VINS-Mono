@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include <opencv2/opencv.hpp>
-#include <opencv2/gpu/gpu.hpp>
 #include "parameters.h"
 
 const int N = 128;
@@ -10,8 +9,8 @@ cv::Mat cpu_dst{HEIGHT, WIDTH, CV_8U};
 cv::Mat cpu_disp{HEIGHT, WIDTH, CV_16S};
 cv::Mat H = cv::Mat::eye(3, 3, CV_64F);
 
-cv::gpu::GpuMat gpu_src{HEIGHT, WIDTH, CV_32F};
-cv::gpu::GpuMat gpu_dst{HEIGHT, WIDTH, CV_32F};
+cv::cuda::GpuMat gpu_src{HEIGHT, WIDTH, CV_32F};
+cv::cuda::GpuMat gpu_dst{HEIGHT, WIDTH, CV_32F};
 
 TEST(perspective, cpu)
 {
@@ -22,16 +21,16 @@ TEST(perspective, cpu)
 TEST(perspective, gpu)
 {
     for (int i = 0; i < N; i++)
-        cv::gpu::warpPerspective(gpu_src, gpu_dst, H, gpu_src.size());
+        cv::cuda::warpPerspective(gpu_src, gpu_dst, H, gpu_src.size());
 }
 
 TEST(sgbm, cpu)
 {
-    cv::StereoSGBM sgbm;
-    sgbm.minDisparity = 0;
-    sgbm.numberOfDisparities = DEP_CNT;
-    sgbm.fullDP = false;
-    sgbm(cpu_src, cpu_dst, cpu_disp);
+    cv::Ptr<cv::StereoSGBM> sgbm = cv::StereoSGBM::create();
+    sgbm->setMinDisparity(0);
+    sgbm->setNumDisparities(DEP_CNT);
+    // sgbm.fullDP = false;
+    sgbm->compute(cpu_src, cpu_dst, cpu_disp);
 }
 
 TEST(sgbm, gpu)
