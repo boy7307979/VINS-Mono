@@ -15,7 +15,7 @@
 
 #include "parameters.h"
 #include "tic_toc.h"
-#define FEATURE_TRACKER_USE_CUDA 0
+#define FEATURE_TRACKER_USE_CUDA 1
 using namespace std;
 using namespace camodocal;
 using namespace Eigen;
