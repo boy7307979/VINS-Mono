@@ -11,7 +11,7 @@
 #include "estimator.h"
 #include "parameters.h"
 #include "utility/visualization.h"
-
+#include "tracer.h"
 
 Estimator estimator;
 
@@ -137,11 +137,14 @@ getMeasurements()
 
 void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
+    static uint64_t count = 0;
     if (imu_msg->header.stamp.toSec() <= last_imu_t)
     {
         ROS_WARN("imu message in disorder!");
         return;
     }
+    ScopedTrace st("imu_data");
+
     last_imu_t = imu_msg->header.stamp.toSec();
 
     m_buf.lock();
@@ -222,6 +225,7 @@ void process()
         {
             auto img_msg = measurement.second;
             double dx = 0, dy = 0, dz = 0, rx = 0, ry = 0, rz = 0;
+            Tracer::TraceBegin("ProcessIMU");
             for (auto &imu_msg : measurement.first)
             {
                 double t = imu_msg->header.stamp.toSec();
@@ -263,6 +267,7 @@ void process()
                     //printf("dimu: dt:%f a: %f %f %f w: %f %f %f\n",dt_1, dx, dy, dz, rx, ry, rz);
                 }
             }
+            Tracer::TraceEnd();
             // set relocalization frame
             sensor_msgs::PointCloudConstPtr relo_msg = NULL;
             while (!relo_buf.empty())

@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
     nav_msgs
     tf
     cv_bridge
+    systrace
     )
 
 find_package(OpenCV REQUIRED)
@@ -30,7 +31,9 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
 )
 
-catkin_package()
+catkin_package(
+CATKIN_DEPENDS systrace
+)
 
 add_executable(vins_estimator
     src/estimator_node.cpp

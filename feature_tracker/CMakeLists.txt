@@ -11,11 +11,14 @@ find_package(catkin REQUIRED COMPONENTS
     sensor_msgs
     cv_bridge
     camera_model
+    systrace
     )
 
 find_package(OpenCV REQUIRED)
 
-catkin_package()
+catkin_package(
+CATKIN_DEPENDS systrace
+)
 
 include_directories(
     ${catkin_INCLUDE_DIRS}

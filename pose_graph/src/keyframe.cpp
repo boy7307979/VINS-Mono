@@ -1,4 +1,5 @@
 #include "keyframe.h"
+#include "tracer.h"
 
 template <typename Derived>
 static void reduceVector(vector<Derived> &v, vector<uchar> status)
@@ -258,6 +259,7 @@ void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
 
 bool KeyFrame::findConnection(KeyFrame* old_kf)
 {
+    ScopedTrace st("findConnect");
 	TicToc tmp_t;
 	//printf("find Connection\n");
 	vector<cv::Point2f> matched_2d_cur, matched_2d_old;

@@ -1,4 +1,5 @@
 #include "feature_manager.h"
+#include "tracer.h"
 
 int FeaturePerId::endFrame()
 {
@@ -201,6 +202,7 @@ VectorXd FeatureManager::getDepthVector()
 
 void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[])
 {
+    ScopedTrace st("triangulate");
     for (auto &it_per_id : feature)
     {
         it_per_id.used_num = it_per_id.feature_per_frame.size();

@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
     camera_model
     cv_bridge
     roslib
+    systrace
     )
 
 find_package(OpenCV)
@@ -25,7 +26,9 @@ find_package(Eigen3)
 
 include_directories(${catkin_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS}  ${EIGEN3_INCLUDE_DIR})
 
-catkin_package()
+catkin_package(
+CATKIN_DEPENDS systrace
+)
 
 add_executable(pose_graph
     src/pose_graph_node.cpp

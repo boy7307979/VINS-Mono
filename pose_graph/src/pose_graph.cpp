@@ -1,4 +1,5 @@
 #include "pose_graph.h"
+#include "tracer.h"
 
 PoseGraph::PoseGraph()
 {
@@ -41,6 +42,7 @@ void PoseGraph::loadVocabulary(std::string voc_path)
 
 void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
 {
+    ScopedTrace st("addKF");
     //shift to base frame
     Vector3d vio_P_cur;
     Matrix3d vio_R_cur;
@@ -72,6 +74,7 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
     {
         addKeyFrameIntoVoc(cur_kf);
     }
+
 	if (loop_index != -1)
 	{
         //printf(" %d detect loop with %d \n", cur_kf->index, loop_index);
@@ -212,6 +215,7 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
 
 void PoseGraph::loadKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
 {
+    ScopedTrace st("loadKF");
     cur_kf->index = global_index;
     global_index++;
     int loop_index = -1;
@@ -303,6 +307,7 @@ KeyFrame* PoseGraph::getKeyFrame(int index)
 
 int PoseGraph::detectLoop(KeyFrame* keyframe, int frame_index)
 {
+    ScopedTrace st("detectLoop");
     // put image into image_pool; for visualization
     cv::Mat compressed_image;
     if (DEBUG_IMAGE)
@@ -387,6 +392,7 @@ int PoseGraph::detectLoop(KeyFrame* keyframe, int frame_index)
 
 void PoseGraph::addKeyFrameIntoVoc(KeyFrame* keyframe)
 {
+    ScopedTrace st("addKFVoc");
     // put image into image_pool; for visualization
     cv::Mat compressed_image;
     if (DEBUG_IMAGE)
@@ -416,6 +422,7 @@ void PoseGraph::optimize4DoF()
         m_optimize_buf.unlock();
         if (cur_index != -1)
         {
+            ScopedTrace st("optimize4DoF");
             printf("optimize pose graph \n");
             TicToc tmp_t;
             m_keyframelist.lock();

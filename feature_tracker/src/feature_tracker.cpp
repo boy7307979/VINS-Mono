@@ -1,4 +1,5 @@
 #include "feature_tracker.h"
+#include "tracer.h"
 
 int FeatureTracker::n_id = 0;
 
@@ -80,12 +81,14 @@ void FeatureTracker::addPoints()
 
 void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
 {
+    ScopedTrace st("FT");
     cv::Mat img;
     TicToc t_r;
     cur_time = _cur_time;
 
     if (EQUALIZE)
     {
+        ScopedTrace st1("clahe");
         cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
         TicToc t_c;
         clahe->apply(_img, img);
@@ -110,7 +113,9 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         TicToc t_o;
         vector<uchar> status;
         vector<float> err;
+        Tracer::TraceBegin("LK");
         cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3);
+        Tracer::TraceEnd();
 
         for (int i = 0; i < int(forw_pts.size()); i++)
             if (status[i] && !inBorder(forw_pts[i]))
@@ -146,7 +151,9 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 cout << "mask type wrong " << endl;
             if (mask.size() != forw_img.size())
                 cout << "wrong size " << endl;
+            Tracer::TraceBegin("GFTT");
             cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
+            Tracer::TraceEnd();
         }
         else
             n_pts.clear();
@@ -170,6 +177,7 @@ void FeatureTracker::rejectWithF()
 {
     if (forw_pts.size() >= 8)
     {
+        ScopedTrace st("rejectF");
         ROS_DEBUG("FM ransac begins");
         TicToc t_f;
         vector<cv::Point2f> un_cur_pts(cur_pts.size()), un_forw_pts(forw_pts.size());

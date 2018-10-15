@@ -8,6 +8,7 @@
 #include <message_filters/subscriber.h>
 
 #include "feature_tracker.h"
+#include "tracer.h"
 
 #define SHOW_UNDISTORTION 0
 
@@ -47,6 +48,9 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         return;
     }
     last_image_time = img_msg->header.stamp.toSec();
+
+    ScopedTrace st("img_data");
+
     // frequency control
     if (round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)) <= FREQ)
     {

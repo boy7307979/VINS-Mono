@@ -1,4 +1,5 @@
 #include "estimator.h"
+#include "tracer.h"
 
 Estimator::Estimator(): f_manager{Rs}
 {
@@ -112,6 +113,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
 
 void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header)
 {
+    ScopedTrace st("ProcessImage");
     ROS_DEBUG("new image coming ------------------------------------------");
     ROS_DEBUG("Adding feature points %lu", image.size());
     if (f_manager.addFeatureCheckParallax(frame_count, image, td))
@@ -210,6 +212,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
 }
 bool Estimator::initialStructure()
 {
+    ScopedTrace st("SFM");
     TicToc t_sfm;
     //check imu observibility
     {
@@ -356,6 +359,7 @@ bool Estimator::initialStructure()
 
 bool Estimator::visualInitialAlign()
 {
+    ScopedTrace st("VisImuAlign");
     TicToc t_g;
     VectorXd x;
     //solve scale
@@ -662,6 +666,8 @@ bool Estimator::failureDetection()
 
 void Estimator::optimization()
 {
+    ScopedTrace st("opt");
+    Tracer::TraceBegin("init_solver");
     ceres::Problem problem;
     ceres::LossFunction *loss_function;
     //loss_function = new ceres::HuberLoss(1.0);
@@ -792,11 +798,12 @@ void Estimator::optimization()
         }
 
     }
+    Tracer::TraceEnd();
 
     ceres::Solver::Options options;
 
     options.linear_solver_type = ceres::DENSE_SCHUR;
-    //options.num_threads = 2;
+    options.num_threads = 1;
     options.trust_region_strategy_type = ceres::DOGLEG;
     options.max_num_iterations = NUM_ITERATIONS;
     //options.use_explicit_schur_complement = true;
@@ -808,7 +815,11 @@ void Estimator::optimization()
         options.max_solver_time_in_seconds = SOLVER_TIME;
     TicToc t_solver;
     ceres::Solver::Summary summary;
+
+    Tracer::TraceBegin("solve");
     ceres::Solve(options, &problem, &summary);
+    Tracer::TraceEnd();
+
     //cout << summary.BriefReport() << endl;
     ROS_DEBUG("Iterations : %d", static_cast<int>(summary.iterations.size()));
     ROS_DEBUG("solver costs: %f", t_solver.toc());
@@ -816,6 +827,7 @@ void Estimator::optimization()
     double2vector();
 
     TicToc t_whole_marginalization;
+    Tracer::TraceBegin("margin");
     if (marginalization_flag == MARGIN_OLD)
     {
         MarginalizationInfo *marginalization_info = new MarginalizationInfo();
@@ -990,6 +1002,8 @@ void Estimator::optimization()
             
         }
     }
+
+    Tracer::TraceEnd();
     ROS_DEBUG("whole marginalization costs: %f", t_whole_marginalization.toc());
     
     ROS_DEBUG("whole time for ceres: %f", t_whole.toc());
@@ -1004,6 +1018,7 @@ void Estimator::slideWindow()
         back_P0 = Ps[0];
         if (frame_count == WINDOW_SIZE)
         {
+            ScopedTrace st("margin_old");
             for (int i = 0; i < WINDOW_SIZE; i++)
             {
                 Rs[i].swap(Rs[i + 1]);
@@ -1050,6 +1065,7 @@ void Estimator::slideWindow()
     {
         if (frame_count == WINDOW_SIZE)
         {
+            ScopedTrace st("margin_2_new");
             for (unsigned int i = 0; i < dt_buf[frame_count].size(); i++)
             {
                 double tmp_dt = dt_buf[frame_count][i];
