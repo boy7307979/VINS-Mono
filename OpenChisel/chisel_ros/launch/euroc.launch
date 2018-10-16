@@ -14,7 +14,7 @@
         <param name="voxel_resolution_m" value="0.1"/>
         <param name="far_plane_dist" value="5.0"/>
         <param name="near_plane_dist" value="0.3"/>
-        <param name="base_transform" value="/base"/>
+        <param name="base_transform" value="/world"/>
         <param name="depth_image_transform" value="/ref_frame"/>
         <param name="color_image_transform" value="/ref_frame"/>
         <param name="fusion_mode" value="DepthImage"/>

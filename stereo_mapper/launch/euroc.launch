@@ -8,5 +8,5 @@
         <remap from="~ref_pose" to="/vins_estimator/ref_pose" />
         <remap from="~cur_pose" to="/vins_estimator/cur_pose" />
     </node>
-    <include file="$(find chisel_ros)/launch/sample.launch"/>
+    <include file="$(find chisel_ros)/launch/euroc.launch"/>
 </launch>

@@ -665,7 +665,7 @@ void callback_raw_pose(const geometry_msgs::PoseStampedConstPtr &ref_pose_ptr,
             q.setY(Eigen::Quaterniond(R_l).y());
             q.setZ(Eigen::Quaterniond(R_l).z());
             transform.setRotation(q);
-            br.sendTransform(tf::StampedTransform(transform, ref_pose_ptr->header.stamp, "base", "ref_frame"));
+            br.sendTransform(tf::StampedTransform(transform, ref_pose_ptr->header.stamp, "world", "ref_frame"));
             key_header = ref_pose_ptr->header;
         }
 
