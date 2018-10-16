@@ -50,7 +50,6 @@ int debug_param2;
 int debug_param3;
 int debug_param4;
 int debug_param5;
-FILE *f_out;
 
 ros::Publisher pub_point_cloud2;
 ros::Publisher pub_point_cloud_ref;
@@ -905,8 +904,6 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "stereo_mapper");
     ros::NodeHandle n("~");
-    f_out = fopen("/home/yzf/outliers.txt", "w");
-
     ROS_INFO("read parameter");
 
     CALIB_DIR = readParam<std::string>(n, "calib_dir");

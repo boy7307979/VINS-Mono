@@ -11,6 +11,8 @@ ros::Publisher pub_camera_pose;
 ros::Publisher pub_camera_pose_visual;
 nav_msgs::Path path, relo_path;
 
+ros::Publisher pub_ref_pose, pub_cur_pose;
+
 ros::Publisher pub_keyframe_pose;
 ros::Publisher pub_keyframe_point;
 ros::Publisher pub_extrinsic;
@@ -35,6 +37,9 @@ void registerPub(ros::NodeHandle &n)
     pub_keyframe_point = n.advertise<sensor_msgs::PointCloud>("keyframe_point", 1000);
     pub_extrinsic = n.advertise<nav_msgs::Odometry>("extrinsic", 1000);
     pub_relo_relative_pose=  n.advertise<nav_msgs::Odometry>("relo_relative_pose", 1000);
+
+    pub_ref_pose = n.advertise<geometry_msgs::PoseStamped>("ref_pose", 1000);
+    pub_cur_pose = n.advertise<geometry_msgs::PoseStamped>("cur_pose", 1000);
 
     cameraposevisual.setScale(1);
     cameraposevisual.setLineWidth(0.05);
@@ -209,30 +214,63 @@ void pubKeyPoses(const Estimator &estimator, const std_msgs::Header &header)
 
 void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
 {
+    int idx1 = WINDOW_SIZE - 2;
     int idx2 = WINDOW_SIZE - 1;
 
     if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
     {
-        int i = idx2;
-        Vector3d P = estimator.Ps[i] + estimator.Rs[i] * estimator.tic[0];
-        Quaterniond R = Quaterniond(estimator.Rs[i] * estimator.ric[0]);
+        {
+            int i = idx1;
+            geometry_msgs::PoseStamped camera_pose;
+            camera_pose.header = header;
+            camera_pose.header.frame_id = std::to_string(estimator.Headers[i].stamp.toNSec());
+            Vector3d P = estimator.Ps[i] + estimator.Rs[i] * estimator.tic[0];
+            Quaterniond R = Quaterniond(estimator.Rs[i] * estimator.ric[0]);
+            camera_pose.pose.position.x = P.x();
+            camera_pose.pose.position.y = P.y();
+            camera_pose.pose.position.z = P.z();
+            camera_pose.pose.orientation.w = R.w();
+            camera_pose.pose.orientation.x = R.x();
+            camera_pose.pose.orientation.y = R.y();
+            camera_pose.pose.orientation.z = R.z();
 
-        nav_msgs::Odometry odometry;
-        odometry.header = header;
-        odometry.header.frame_id = "world";
-        odometry.pose.pose.position.x = P.x();
-        odometry.pose.pose.position.y = P.y();
-        odometry.pose.pose.position.z = P.z();
-        odometry.pose.pose.orientation.x = R.x();
-        odometry.pose.pose.orientation.y = R.y();
-        odometry.pose.pose.orientation.z = R.z();
-        odometry.pose.pose.orientation.w = R.w();
+            pub_ref_pose.publish(camera_pose);
+        }
 
-        pub_camera_pose.publish(odometry);
+        {
+            int i = idx2;
+            geometry_msgs::PoseStamped camera_pose;
+            camera_pose.header = header;
+            camera_pose.header.frame_id = std::to_string(estimator.Headers[i].stamp.toNSec());
+            Vector3d P = estimator.Ps[i] + estimator.Rs[i] * estimator.tic[0];
+            Quaterniond R = Quaterniond(estimator.Rs[i] * estimator.ric[0]);
+            camera_pose.pose.position.x = P.x();
+            camera_pose.pose.position.y = P.y();
+            camera_pose.pose.position.z = P.z();
+            camera_pose.pose.orientation.w = R.w();
+            camera_pose.pose.orientation.x = R.x();
+            camera_pose.pose.orientation.y = R.y();
+            camera_pose.pose.orientation.z = R.z();
 
-        cameraposevisual.reset();
-        cameraposevisual.add_pose(P, R);
-        cameraposevisual.publish_by(pub_camera_pose_visual, odometry.header);
+            pub_cur_pose.publish(camera_pose);
+
+            nav_msgs::Odometry odometry;
+            odometry.header = header;
+            odometry.header.frame_id = "world";
+            odometry.pose.pose.position.x = P.x();
+            odometry.pose.pose.position.y = P.y();
+            odometry.pose.pose.position.z = P.z();
+            odometry.pose.pose.orientation.x = R.x();
+            odometry.pose.pose.orientation.y = R.y();
+            odometry.pose.pose.orientation.z = R.z();
+            odometry.pose.pose.orientation.w = R.w();
+
+            pub_camera_pose.publish(odometry);
+
+            cameraposevisual.reset();
+            cameraposevisual.add_pose(P, R);
+            cameraposevisual.publish_by(pub_camera_pose_visual, odometry.header);
+        }
     }
 }
 
