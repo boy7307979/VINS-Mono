@@ -43,6 +43,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/exact_time.h>
+#include <opencv2/opencv.hpp>
 
 namespace chisel_ros
 {
@@ -243,6 +244,9 @@ class ChiselServer
     float farPlaneDist;
     bool isPaused;
     FusionMode mode;
+
+    void InitColorMap();
+    cv::Mat mColorMap;
 };
 typedef std::shared_ptr<ChiselServer> ChiselServerPtr;
 typedef std::shared_ptr<const ChiselServer> ChiselServerConstPtr;

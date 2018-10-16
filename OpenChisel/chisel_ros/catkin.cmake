@@ -5,6 +5,10 @@ find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs geometry_msg
 find_package(cmake_modules REQUIRED)
 find_package(Eigen REQUIRED)
 find_package(PCL 1.8 REQUIRED)
+find_package(OpenCV REQUIRED
+NO_MODULE # should be optional, tells CMake to use config mode
+PATHS /usr/local # look here
+NO_DEFAULT_PATH) # and don't look anywhere else
 include_directories(${Eigen_INCLUDE_DIRS})
 
 set(CMAKE_BUILD_TYPE "Release")
@@ -37,7 +41,7 @@ add_library(${PROJECT_NAME} src/ChiselServer.cpp)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_generate_messages_cpp)
 add_executable(ChiselNode src/ChiselNode.cpp)
-target_link_libraries(ChiselNode ${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(ChiselNode ${PROJECT_NAME} ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}

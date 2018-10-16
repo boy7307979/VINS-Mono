@@ -29,9 +29,18 @@
 namespace chisel_ros
 {
 
+void ChiselServer::InitColorMap() {
+    cv::Mat gray(1, 256, CV_8U);
+    for(int i = 0; i < 256; ++i) {
+        gray.data[i] = i;
+    }
+    cv::applyColorMap(gray, mColorMap, cv::COLORMAP_HSV);
+}
+
 ChiselServer::ChiselServer()
     : useColor(false), hasNewData(false), nearPlaneDist(0.05), farPlaneDist(5), isPaused(false), mode(FusionMode::DepthImage)
 {
+    InitColorMap();
 }
 
 ChiselServer::~ChiselServer()
@@ -186,6 +195,7 @@ void ChiselServer::PublishColorPose()
 ChiselServer::ChiselServer(const ros::NodeHandle &nodeHanlde, int chunkSizeX, int chunkSizeY, int chunkSizeZ, float resolution, bool color, FusionMode fusionMode)
     : nh(nodeHanlde), useColor(color), hasNewData(false), isPaused(false), mode(fusionMode)
 {
+    InitColorMap();
     chiselMap.reset(new chisel::Chisel(Eigen::Vector3i(chunkSizeX, chunkSizeY, chunkSizeZ), resolution, color));
 }
 
@@ -666,6 +676,16 @@ void ChiselServer::FillMarkerTopicWithMeshes(visualization_msgs::Marker *marker,
             pt.y = vec[1];
             pt.z = vec[2];
             marker2->points.push_back(pt);
+
+            std_msgs::ColorRGBA color;
+            int colormap_index = std::abs((int)(pt.z / 0.03));
+            colormap_index = colormap_index % 256;
+            cv::Vec3b hsv = mColorMap.at<cv::Vec3b>(colormap_index);
+            color.b = (float)hsv[0]/255;
+            color.g = (float)hsv[1]/255;
+            color.r = (float)hsv[2]/255;
+            color.a = 1.0;
+            marker2->colors.emplace_back(color);
         }
         for (size_t i = 0; i < mesh->vertices.size(); i++)
         {
