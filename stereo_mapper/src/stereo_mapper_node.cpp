@@ -558,9 +558,9 @@ void callback_raw_image(
 {
     ROS_INFO("save images with header: %f", img_l_msg->header.stamp.toSec());
     cv_bridge::CvImagePtr img_l_ptr = cv_bridge::toCvCopy(img_l_msg, sensor_msgs::image_encodings::MONO8);
-    img_pool[std::to_string(img_l_ptr->header.stamp.toNSec())] = img_l_ptr->image.clone();
+    img_pool[std::to_string(img_l_ptr->header.stamp.toNSec())] = img_l_ptr->image;
     cv_bridge::CvImagePtr img_r_ptr = cv_bridge::toCvCopy(img_r_msg, sensor_msgs::image_encodings::MONO8);
-    img_pool_r[std::to_string(img_r_ptr->header.stamp.toNSec())] = img_r_ptr->image.clone();
+    img_pool_r[std::to_string(img_r_ptr->header.stamp.toNSec())] = img_r_ptr->image;
     char str[100];
     std::string name = std::to_string(img_l_ptr->header.stamp.toNSec());
 
