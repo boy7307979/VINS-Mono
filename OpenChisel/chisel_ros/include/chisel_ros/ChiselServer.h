@@ -149,6 +149,7 @@ class ChiselServer
 
     void IntegrateLastDepthImage();
     void IntegrateLastPointCloud();
+    void FillMarkerTopicWithLocalMeshes(visualization_msgs::Marker *marker, visualization_msgs::Marker *marker2);
     void FillMarkerTopicWithMeshes(visualization_msgs::Marker *marker, visualization_msgs::Marker *marker2);
     inline void SetBaseTransform(const std::string &frameName)
     {
@@ -247,6 +248,9 @@ class ChiselServer
 
     void InitColorMap();
     cv::Mat mColorMap;
+
+    bool mbShowLocal = false;
+    chisel::ChunkSet msLatest; // for visualization
 };
 typedef std::shared_ptr<ChiselServer> ChiselServerPtr;
 typedef std::shared_ptr<const ChiselServer> ChiselServerConstPtr;

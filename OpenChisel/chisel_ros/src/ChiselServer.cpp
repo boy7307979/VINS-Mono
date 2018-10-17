@@ -65,7 +65,10 @@ void ChiselServer::PublishMeshes()
 {
     visualization_msgs::Marker marker;
     visualization_msgs::Marker marker2;
-    FillMarkerTopicWithMeshes(&marker, &marker2);
+    if(mbShowLocal)
+        FillMarkerTopicWithLocalMeshes(&marker, &marker2);
+    else
+        FillMarkerTopicWithMeshes(&marker, &marker2);
 
     if (!marker2.points.empty())
     {
@@ -539,6 +542,8 @@ void ChiselServer::IntegrateLastPointCloud()
 
 void ChiselServer::PublishLatestChunkBoxes()
 {
+    if(mbShowLocal)
+        msLatest = chiselMap->GetMeshesToUpdate();
     if (!latestChunkPublisher)
         return;
     const chisel::ChunkManager &chunkManager = chiselMap->GetChunkManager();
@@ -678,7 +683,129 @@ void ChiselServer::FillMarkerTopicWithMeshes(visualization_msgs::Marker *marker,
             marker2->points.push_back(pt);
 
             std_msgs::ColorRGBA color;
-            int colormap_index = std::abs((int)(pt.z / 0.03));
+            int colormap_index = std::abs((int)(pt.z / 0.05));
+            colormap_index = colormap_index % 256;
+            cv::Vec3b hsv = mColorMap.at<cv::Vec3b>(colormap_index);
+            color.b = (float)hsv[0]/255;
+            color.g = (float)hsv[1]/255;
+            color.r = (float)hsv[2]/255;
+            color.a = 1.0;
+            marker2->colors.emplace_back(color);
+        }
+        for (size_t i = 0; i < mesh->vertices.size(); i++)
+        {
+            const chisel::Vec3 &vec = mesh->vertices[i];
+            geometry_msgs::Point pt;
+            pt.x = vec[0];
+            pt.y = vec[1];
+            pt.z = vec[2];
+            marker->points.push_back(pt);
+
+            if (mesh->HasColors())
+            {
+                const chisel::Vec3 &meshCol = mesh->colors[i];
+                std_msgs::ColorRGBA color;
+                color.r = meshCol[0];
+                color.g = meshCol[1];
+                color.b = meshCol[2];
+                color.a = 1.0;
+                marker->colors.push_back(color);
+            }
+            else
+            {
+                if (mesh->HasNormals())
+                {
+                    const chisel::Vec3 normal = mesh->normals[i];
+                    std_msgs::ColorRGBA color;
+                    chisel::Vec3 lambert = LAMBERT(normal, lightDir) + LAMBERT(normal, lightDir1) + ambient;
+                    color.r = fmin(lambert[0], 1.0);
+                    color.g = fmin(lambert[1], 1.0);
+                    color.b = fmin(lambert[2], 1.0);
+                    color.a = 1.0;
+                    marker->colors.push_back(color);
+                }
+                else
+                {
+                    std_msgs::ColorRGBA color;
+                    color.r = vec[0] * 0.25 + 0.5;
+                    color.g = vec[1] * 0.25 + 0.5;
+                    color.b = vec[2] * 0.25 + 0.5;
+                    color.a = 1.0;
+                    marker->colors.push_back(color);
+                }
+            }
+            //marker->indicies.push_back(idx);
+            //idx++;
+        }
+    }
+}
+
+void ChiselServer::FillMarkerTopicWithLocalMeshes(visualization_msgs::Marker *marker, visualization_msgs::Marker *marker2) {
+    assert(marker != nullptr);
+    assert(marker2 != nullptr);
+    const chisel::ChunkManager &chunkManager = chiselMap->GetChunkManager();
+    marker2->header.stamp = ros::Time::now();
+    marker2->header.frame_id = baseTransform;
+    marker2->ns = "grid";
+    marker2->type = visualization_msgs::Marker::CUBE_LIST;
+    marker2->scale.x = chunkManager.GetResolution();
+    marker2->scale.y = chunkManager.GetResolution();
+    marker2->scale.z = chunkManager.GetResolution();
+    marker2->pose.orientation.x = 0;
+    marker2->pose.orientation.y = 0;
+    marker2->pose.orientation.z = 0;
+    marker2->pose.orientation.w = 1;
+    marker2->color.r = 1.0;
+    marker2->color.g = 0.0;
+    marker2->color.b = 0.0;
+    marker2->color.a = 1.0;
+
+    marker->header.stamp = ros::Time::now();
+    marker->header.frame_id = baseTransform;
+    marker->ns = "mesh";
+    marker->scale.x = 1;
+    marker->scale.y = 1;
+    marker->scale.z = 1;
+    marker->pose.orientation.x = 0;
+    marker->pose.orientation.y = 0;
+    marker->pose.orientation.z = 0;
+    marker->pose.orientation.w = 1;
+    marker->type = visualization_msgs::Marker::TRIANGLE_LIST;
+    const chisel::MeshMap &meshMap = chunkManager.GetAllMeshes();
+
+    if (meshMap.size() == 0)
+    {
+        ROS_INFO("No Mesh");
+        return;
+    }
+
+    chisel::Vec3 lightDir(0.8f, -0.2f, 0.7f);
+    lightDir.normalize();
+    chisel::Vec3 lightDir1(-0.5f, 0.2f, 0.2f);
+    lightDir.normalize();
+    const chisel::Vec3 ambient(0.2f, 0.2f, 0.2f);
+    //int idx = 0;
+    for (const std::pair<chisel::ChunkID, bool> &id : msLatest)
+    {
+        if (!chunkManager.HasChunk(id.first)) {
+            continue;
+        }
+        auto meshMapItr = meshMap.find(id.first);
+        if(meshMapItr == meshMap.end()) {
+            continue;
+        }
+        const chisel::MeshPtr &mesh = meshMapItr->second;
+        for (size_t i = 0; i < mesh->grids.size(); i++)
+        {
+            const chisel::Vec3 &vec = mesh->grids[i];
+            geometry_msgs::Point pt;
+            pt.x = vec[0];
+            pt.y = vec[1];
+            pt.z = vec[2];
+            marker2->points.push_back(pt);
+
+            std_msgs::ColorRGBA color;
+            int colormap_index = std::abs((int)(pt.z / 0.05));
             colormap_index = colormap_index % 256;
             cv::Vec3b hsv = mColorMap.at<cv::Vec3b>(colormap_index);
             color.b = (float)hsv[0]/255;
