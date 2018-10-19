@@ -51,28 +51,34 @@ void StereoMatcher::ReadParameters(const std::string& filename) {
     mcM2l.upload(mM2l);
     mcM1r.upload(mM1r);
     mcM2r.upload(mM2r);
+
+    mQ.convertTo(mQ, CV_32F);
     mpStereoBM = cv::cuda::createStereoBM(numDisparities, blockSize);
 
+    ROS_INFO_STREAM("disparity");
     for(int i = 1; i < 64; ++i) {
-        ROS_ERROR_STREAM(-mP2.at<double>(0, 3)/i);
+        ROS_INFO_STREAM("i -> " << -mP2.at<double>(0, 3)/i << " (m)");
     }
 }
 
-void StereoMatcher::operator()(const cv::Mat& img_l, const cv::Mat& img_r) {
+void StereoMatcher::compute(const cv::Mat& img_l, const cv::Mat& img_r,
+                            cv::Mat& img_rect_l, cv::Mat& disparity,
+                            cv::Mat& point_cloud) {
     TicToc tic;
-    cv::cuda::GpuMat gpu_img_l, gpu_img_r;
-    cv::cuda::GpuMat gpu_rect_img_l, gpu_rect_img_r;
     gpu_img_l.upload(img_l);
     gpu_img_r.upload(img_r);
     cv::cuda::remap(gpu_img_l, gpu_rect_img_l, mcM1l, mcM2l, cv::INTER_LINEAR);
     cv::cuda::remap(gpu_img_r, gpu_rect_img_r, mcM1r, mcM2r, cv::INTER_LINEAR);
-    cv::cuda::GpuMat gpu_disparity;
     mpStereoBM->compute(gpu_rect_img_l, gpu_rect_img_r, gpu_disparity);
 
-    cv::Mat disparity;
+    cv::cuda::reprojectImageTo3D(gpu_disparity, gpu_point_cloud, mQ, 3);
     gpu_disparity.download(disparity);
-    //    double min_value, max_value;
-    //    cv::minMaxIdx(disparity, &min_value, &max_value);
-    //    cv::Mat show_disparity;
-    //    disparity.convertTo(show_disparity, CV_8U, 255.0/max_value);
+    gpu_rect_img_l.download(img_rect_l);
+    gpu_point_cloud.download(point_cloud);
+//    double min_value, max_value;
+//    cv::minMaxIdx(disparity, &min_value, &max_value);
+//    cv::Mat show_disparity;
+//    disparity.convertTo(show_disparity, CV_8U, 255.0/max_value);
+//    cv::imshow("disparity", show_disparity);
+//    cv::waitKey(1);
 }

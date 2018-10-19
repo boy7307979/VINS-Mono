@@ -75,8 +75,8 @@ void StereoMapper::update(const cv::Mat &_img_r, const cv::Mat &R_l, const cv::M
 
     t = cv::getTickCount();
 
-    R = nK2 * R_r.t() * R_l * nK1.inv();
-    T = nK2 * R_r.t() * (T_l - T_r);
+    R = nK2 * R_r.t() * R_l * nK1.inv(); // ?
+    T = nK2 * R_r.t() * (T_l - T_r);     // ?
     ad_calc_cost(
         measurement_cnt,
         R.at<double>(0, 0), R.at<double>(0, 1), R.at<double>(0, 2),
