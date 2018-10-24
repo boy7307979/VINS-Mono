@@ -856,6 +856,103 @@ void callback_raw_pose(const geometry_msgs::PoseStampedConstPtr &ref_pose_ptr,
     }
 }
 
+void callback_raw_pose2(const geometry_msgs::PoseStampedConstPtr &cur_pose_ptr) {
+    std::string cur_time = cur_pose_ptr->header.frame_id;
+    auto cur_lit = img_pool.find(cur_time);
+    auto cur_rit = img_pool_r.find(cur_time);
+
+    if(cur_lit != img_pool.end() && cur_rit != img_pool_r.end()) {
+        Eigen::Matrix3d R_l = Eigen::Quaterniond{cur_pose_ptr->pose.orientation.w,
+                                                 cur_pose_ptr->pose.orientation.x,
+                                                 cur_pose_ptr->pose.orientation.y,
+                                                 cur_pose_ptr->pose.orientation.z}.toRotationMatrix();
+        Eigen::Vector3d T_l = Eigen::Vector3d{cur_pose_ptr->pose.position.x,
+                                              cur_pose_ptr->pose.position.y,
+                                              cur_pose_ptr->pose.position.z};
+
+        cv::Mat cv_R_l, cv_T_l;
+        cv::eigen2cv(R_l, cv_R_l);
+        cv::eigen2cv(T_l, cv_T_l);
+
+        mapper.initReference(cur_lit->second);
+        img1 = mapper.img_intensity;
+
+        //cv::imshow("ep line", img1);
+        cv::cv2eigen(cv_R_l, R1_eigen);
+        cv::cv2eigen(cv_T_l, T1_eigen);
+
+
+        cv::Mat Rwr, twr;
+        Rwr = cv_R_l * R21.t();
+        twr = cv_R_l * -(R21.t() * T21) + cv_T_l;
+        {
+            // camera frame
+            static tf::TransformBroadcaster br;
+            tf::Transform transform;
+            tf::Quaternion q;
+            transform.setOrigin(tf::Vector3(T_l.x(),
+                                            T_l.y(),
+                                            T_l.z()));
+            q.setW(Eigen::Quaterniond(R_l).w());
+            q.setX(Eigen::Quaterniond(R_l).x());
+            q.setY(Eigen::Quaterniond(R_l).y());
+            q.setZ(Eigen::Quaterniond(R_l).z());
+            transform.setRotation(q);
+            br.sendTransform(tf::StampedTransform(transform, cur_pose_ptr->header.stamp, "world", "ref_frame"));
+            key_header = cur_pose_ptr->header;
+        }
+
+        start = true;
+        TicToc t_update;
+        mapper.update(cur_rit->second, cv_R_l, cv_T_l, Rwr, twr);
+        ROS_INFO("update costs: %fms", t_update.toc());
+
+        result = mapper.output();
+
+        ROS_INFO("publish to Fusion: %f", key_header.stamp.toSec());
+        sendCloud(result, img1);
+
+        ROS_INFO("publish point cloud: %f", key_header.stamp.toSec());
+        {
+            cv_bridge::CvImage out_msg;
+            out_msg.header = key_header;
+            out_msg.header.frame_id = "camera";
+            out_msg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+            out_msg.image = result.clone();
+            pub_disp_img.publish(out_msg.toImageMsg());
+        }
+
+        {
+            cv_bridge::CvImage out_msg;
+            out_msg.header = key_header;
+            out_msg.header.frame_id = "camera";
+            out_msg.encoding = sensor_msgs::image_encodings::MONO8;
+            out_msg.image = img1.clone();
+            pub_color_img.publish(out_msg.toImageMsg());
+        }
+
+        {
+            sensor_msgs::CameraInfo camera_info;
+            camera_info.header = key_header;
+#if DOWNSAMPLE
+            camera_info.P[0] = K1.at<double>(0, 0) / 2;
+            camera_info.P[5] = K1.at<double>(1, 1) / 2;
+            camera_info.P[2] = K1.at<double>(0, 2) / 2;
+            camera_info.P[6] = K1.at<double>(1, 2) / 2;
+#else
+            camera_info.P[0] = K1.at<double>(0, 0);
+            camera_info.P[5] = K1.at<double>(1, 1);
+            camera_info.P[2] = K1.at<double>(0, 2);
+            camera_info.P[6] = K1.at<double>(1, 2);
+#endif
+            camera_info.width = WIDTH;
+            camera_info.height = HEIGHT;
+            pub_color_img_info.publish(camera_info);
+            pub_disp_img_info.publish(camera_info);
+        }
+    }
+}
+
 void drawAndShow(std::string name, const cv::Mat &img, const std::vector<cv::Point2f> &pts)
 {
     cv::Mat img_ = img.clone();
@@ -916,8 +1013,25 @@ int main(int argc, char **argv)
     }
     param_reader_l["camera_matrix"] >> K1;
     param_reader_l["distortion_coefficients"] >> D1;
+    param_reader_l["R"] >> R1;
+    param_reader_l["P"] >> P1;
     ROS_INFO_STREAM("K1" << K1);
     ROS_INFO_STREAM("D1" << D1);
+    ROS_INFO_STREAM("R1" << R1);
+    ROS_INFO_STREAM("P1" << P1);
+
+    cv::FileStorage param_reader_r(CALIB_DIR + CAM_NAME + "/right.yml", cv::FileStorage::READ);
+    param_reader_r["camera_matrix"] >> K2;
+    param_reader_r["distortion_coefficients"] >> D2;
+    param_reader_r["R"] >> R2;
+    param_reader_r["P"] >> P2;
+    ROS_INFO_STREAM("K2" << K2);
+    ROS_INFO_STREAM("D2" << D2);
+    ROS_INFO_STREAM("R2" << R2);
+    ROS_INFO_STREAM("P2" << P2);
+
+    R21 = cv::Mat::eye(3, 3, CV_64F);
+    T21 = (cv::Mat_<double>(3, 1) << P2.at<double>(0, 3)/P2.at<double>(0, 0), 0, 0);
 /*
     param_reader_l["T_BS"] >> T_BS;
     cv::cv2eigen(T_BS.rowRange(0, 3).colRange(0, 3), R_bs);
@@ -927,7 +1041,7 @@ int main(int argc, char **argv)
     cv::cv2eigen(K1, K_eigen);
 //    cv::cv2eigen(K, K_eigen);
 //    std::cout << K_eigen << std::endl;
-    mapper.initIntrinsic(K1, D1, K1, D1);
+    mapper.initIntrinsic(K1, D1, R1, P1, K2, D2, R2, P2);
 
 /*
     cv::FileStorage param_reader_r(CALIB_DIR + CAM_NAME + "/right.yml", cv::FileStorage::READ);
@@ -939,17 +1053,8 @@ int main(int argc, char **argv)
     param_reader_stereo["stereo_t"] >> T21;
 */
 
-    std::cout << K1 << std::endl;
-    std::cout << D1 << std::endl;
-/*
-    std::cout << K2 << std::endl;
-    std::cout << D2 << std::endl;
-    std::cout << R21 << std::endl;
-    std::cout << T21 << std::endl;
-*/
-
-    for (int i = 1; i <= DEP_CNT; i++)
-        std::cout << 1.0f / (DEP_SAMPLE * i) << std::endl;
+//    for (int i = 1; i <= DEP_CNT; i++)
+//        std::cout << 1.0f / (DEP_SAMPLE * i) << std::endl;
 
 /*
     cv::stereoRectify(K1, D1, K2, D2, cv::Size(WIDTH * 2, HEIGHT * 2), R21, T21, R1, R2, P1, P2, Q, cv::CALIB_ZERO_DISPARITY, 0);
@@ -963,8 +1068,8 @@ int main(int argc, char **argv)
 
     message_filters::Subscriber<sensor_msgs::Image> sub_img_l(n, "image_l", 100);
     message_filters::Subscriber<sensor_msgs::Image> sub_img_r(n, "image_r", 100);
-    message_filters::Subscriber<geometry_msgs::PoseStamped> sub_ref_pose(n, "ref_pose", 2);
-    message_filters::Subscriber<geometry_msgs::PoseStamped> sub_cur_pose(n, "cur_pose", 2);
+//    message_filters::Subscriber<geometry_msgs::PoseStamped> sub_ref_pose(n, "ref_pose", 2);
+//    message_filters::Subscriber<geometry_msgs::PoseStamped> sub_cur_pose(n, "cur_pose", 2);
 
 #if STEREO
     typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image, sensor_msgs::Image, geometry_msgs::PoseStamped> MySyncPolicy;
@@ -976,9 +1081,10 @@ int main(int argc, char **argv)
     message_filters::Synchronizer<MySyncPolicy_img> sync_img(MySyncPolicy_img(1000), sub_img_l, sub_img_r);
     sync_img.registerCallback(boost::bind(&callback_raw_image, _1, _2));
 
-    typedef message_filters::sync_policies::ExactTime<geometry_msgs::PoseStamped, geometry_msgs::PoseStamped> MySyncPolicy_pose;
-    message_filters::Synchronizer<MySyncPolicy_pose> sync_pose(MySyncPolicy_pose(1000), sub_ref_pose, sub_cur_pose);
-    sync_pose.registerCallback(boost::bind(&callback_raw_pose, _1, _2));
+//    typedef message_filters::sync_policies::ExactTime<geometry_msgs::PoseStamped, geometry_msgs::PoseStamped> MySyncPolicy_pose;
+//    message_filters::Synchronizer<MySyncPolicy_pose> sync_pose(MySyncPolicy_pose(1000), sub_ref_pose, sub_cur_pose);
+//    sync_pose.registerCallback(boost::bind(&callback_raw_pose, _1, _2));
+    ros::Subscriber sub_cur_pose = n.subscribe("cur_pose", 100, callback_raw_pose2);
 #endif
 
     pub_point_cloud2 = n.advertise<sensor_msgs::PointCloud2>("point_cloud2", 1000);

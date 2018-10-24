@@ -8,6 +8,34 @@ StereoMapper::StereoMapper()
 {
 }
 
+void StereoMapper::initIntrinsic(const cv::Mat& K1, const cv::Mat& D1, const cv::Mat& R1, const cv::Mat& P1_,
+                                 const cv::Mat& K2, const cv::Mat& D2, const cv::Mat& R2, const cv::Mat& P2_) {
+    nK1 = K1.clone();
+    nK2 = K2.clone();
+    cv::Mat P1 = P1_.clone(), P2 = P2_.clone();
+
+#if DOWNSAMPLE
+    nK1 /= 2;
+    nK2 /= 2;
+    P1 /= 2;
+    P2 /= 2;
+    nK1.at<double>(2, 2) = 1;
+    nK2.at<double>(2, 2) = 1;
+    P1.at<double>(2, 2) = 1;
+    P2.at<double>(2, 2) = 1;
+#endif
+    cv::initUndistortRectifyMap(K1, D1, R1, P1, cv::Size(WIDTH, HEIGHT), CV_32FC1, _map1_l, _map2_l);
+    map1_l.upload(_map1_l);
+    map2_l.upload(_map2_l);
+
+    cv::initUndistortRectifyMap(K2, D2, R2, P2, cv::Size(WIDTH, HEIGHT), CV_32FC1, _map1_r, _map2_r);
+    map1_r.upload(_map1_r);
+    map2_r.upload(_map2_r);
+
+    P1.colRange(0, 3).copyTo(nK1);
+    P2.colRange(0, 3).copyTo(nK2);
+}
+
 void StereoMapper::initIntrinsic(const cv::Mat &_K1, const cv::Mat &_D1, const cv::Mat &_K2, const cv::Mat &_D2)
 {
 
@@ -42,7 +70,6 @@ void StereoMapper::initReference(const cv::Mat &_img_l)
 
     img_l.download(tmp_img);
     tmp_img.convertTo(img_intensity, CV_8U);
-
     //cv::imwrite("/home/ubuntu/left.jpg", img_intensity);
     //cv::imwrite("/home/ubuntu/raw_left.jpg", _img_l);
 
@@ -77,6 +104,7 @@ void StereoMapper::update(const cv::Mat &_img_r, const cv::Mat &R_l, const cv::M
 
     R = nK2 * R_r.t() * R_l * nK1.inv(); // ?
     T = nK2 * R_r.t() * (T_l - T_r);     // ?
+
     ad_calc_cost(
         measurement_cnt,
         R.at<double>(0, 0), R.at<double>(0, 1), R.at<double>(0, 2),

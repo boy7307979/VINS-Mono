@@ -11,13 +11,13 @@
 const int WIDTH = 752 / 2;
 const int ALIGN_WIDTH = 768 / 2;
 const int HEIGHT = 480 / 2;
-const float FOCAL = (466.42 + 466.07) / 4;
+const float FOCAL = (435.2046959714599 + 435.2046959714599) / 4;
 const int DEP_CNT = 128 / 2;
 #else
 const int WIDTH = 752;
 const int ALIGN_WIDTH = 768;
 const int HEIGHT = 480;
-const float FOCAL = (466.42 + 466.07) / 2;
+const float FOCAL = (435.2046959714599 + 435.2046959714599) / 2;
 const int DEP_CNT = 128;
 #endif
 

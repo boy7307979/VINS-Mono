@@ -24,7 +24,10 @@ ADCalcCostKernel(
 {
     const int tidx_base = blockDim.x * blockIdx.x;
     const int tidy = blockIdx.y;
-
+    // blockDim.x = 64
+    // blockIdx.x = [0, 5]
+    // blockIdx.y = [0, HEIGHT - 1]
+    // threadIdx.x = [0, 63]
     for (int k = 0, tidx = tidx_base; k < DEP_CNT; k++, tidx++)
         if (tidx >= 0 && tidx <= WIDTH - 1 && tidy >= 0 && tidy <= HEIGHT - 1)
         {
@@ -281,8 +284,8 @@ void ad_calc_cost(
     checkCudaErrors(cudaUnbindTexture(tex2Dleft));
     checkCudaErrors(cudaUnbindTexture(tex2Dright));
 
-    dim3 numThreads = dim3(DEP_CNT, 1, 1);
-    dim3 numBlocks = dim3(iDivUp(WIDTH, DEP_CNT), HEIGHT);
+    dim3 numThreads = dim3(DEP_CNT, 1, 1); // block
+    dim3 numBlocks = dim3(iDivUp(WIDTH, DEP_CNT), HEIGHT); // grid
 
     cudaChannelFormatDesc ca_desc0 = cudaCreateChannelDesc<float>();
     cudaChannelFormatDesc ca_desc1 = cudaCreateChannelDesc<float>();

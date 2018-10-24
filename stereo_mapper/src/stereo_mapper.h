@@ -11,6 +11,8 @@ class StereoMapper
 {
   public:
     StereoMapper();
+    void initIntrinsic(const cv::Mat& K1, const cv::Mat& D1, const cv::Mat& R1, const cv::Mat& P1,
+                       const cv::Mat& K2, const cv::Mat& D2, const cv::Mat& R2, const cv::Mat& P2);
     void initIntrinsic(const cv::Mat &K1, const cv::Mat &D1, const cv::Mat &K2, const cv::Mat &D2);
 
     void initReference(const cv::Mat &_img_l);
