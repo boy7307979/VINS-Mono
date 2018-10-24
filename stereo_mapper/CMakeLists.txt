@@ -28,7 +28,7 @@ generate_dynamic_reconfigure_options(
 
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
-
+find_package(Sophus REQUIRED)
 find_package(OpenCV REQUIRED
 NO_MODULE # should be optional, tells CMake to use config mode
 PATHS /usr/local # look here
@@ -50,6 +50,8 @@ cuda_add_executable(stereo_mapper
     src/calc_cost.cu
     src/stereo_mapper.cpp
     src/parameters.cpp
+    src/sgm.cu
+    src/sgm.cpp
     )
 
 add_dependencies(stereo_mapper ${PROJECT_NAME}_gencfg)

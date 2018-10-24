@@ -504,3 +504,4 @@ void sgm2(
                                                               pi1, pi2, tau_so, sgm_q1, sgm_q2);
     cudaDeviceSynchronize();
 }
+#undef INDEX
