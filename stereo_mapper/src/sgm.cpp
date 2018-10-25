@@ -32,9 +32,10 @@ void StereoSGM::InitIntrinsic(const cv::Size& image_size, const cv::Mat& Kl,
     mcDepth.create(mImageSize, CV_32F);
 
     mTrl = Trl;
+    mTlr = mTrl.inverse();
 }
 
-void StereoSGM::InitIntrinsic(const cv::Size& image_size, const cv::Mat& K, const cv::Mat& D) {
+void StereoSGM::InitIntrinsic(const cv::Size& image_size, const cv::Mat& K, const cv::Mat& D, float baseline) {
     mbIsStereo = false;
     mKl = K.clone();
     mImageSize = image_size;
@@ -51,6 +52,7 @@ void StereoSGM::InitIntrinsic(const cv::Size& image_size, const cv::Mat& K, cons
     mcSADCost.create(1, mImageArea * mNumDisparity, CV_32F);
     mcSGMCost.create(1, mImageArea * mNumDisparity, CV_32F);
     mcDepth.create(mImageSize, CV_32F);
+    mbf = baseline * mKl.at<double>(0, 0);
 }
 
 void StereoSGM::InitReference(const cv::Mat& img_ref, const Sophus::SE3d& Tw_ref) {
@@ -93,7 +95,46 @@ void StereoSGM::UpdateByMotion(const cv::Mat& img_cur, const Sophus::SE3d& Tw_cu
     Eigen::Matrix<float, 3, 3, Eigen::RowMajor> H = (Kl * Rref_w * Rw_cur * Kl.inverse()).cast<float>();
     Eigen::Vector3f h = (Kl * Rref_w * (mTw_ref.translation() - mTw_cur.translation())).cast<float>();
 
-    float mbf; // TODO
     SADCalcCost(mMeasCount, mNumDisparity, mbf, H.data(), h.data(), (float*)mcRefImg.data, (float*)mcCurImg.data,
                 mImageSize.height, mImageSize.width, mcCurImg.step, (float*)mcSADCost.data);
+}
+
+void StereoSGM::UpdateByMotionR(const cv::Mat& img_cur, const Sophus::SE3d& Tw_cur) {
+    ++mMeasCount;
+    mTw_cur = Tw_cur * mTlr;
+
+    cv::cuda::GpuMat c_img_cur;
+    c_img_cur.upload(img_cur);
+    c_img_cur.convertTo(c_img_cur, CV_32F);
+    cv::cuda::remap(c_img_cur, mcCurImg, mcM1l, mcM2l, cv::INTER_LINEAR);
+
+    if(mbDebug) {
+        mcCurImg.download(mCurImg);
+        mCurImg.convertTo(mCurImg, CV_8U);
+        cv::imshow("cur_img", mCurImg);
+        cv::waitKey(1);
+    }
+
+    Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor>> Kl(mKl.ptr<double>());
+    Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor>> Kr(mKr.ptr<double>());
+    Eigen::Matrix3d Rref_w = mTref_w.rotationMatrix(), Rw_cur = mTw_cur.rotationMatrix();
+
+    Eigen::Matrix<float, 3, 3, Eigen::RowMajor> H = (Kl * Rref_w * Rw_cur * Kr.inverse()).cast<float>();
+    Eigen::Vector3f h = (Kl * Rref_w * (mTw_ref.translation() - mTw_cur.translation())).cast<float>();
+
+    SADCalcCost(mMeasCount, mNumDisparity, mbf, H.data(), h.data(), (float*)mcRefImg.data, (float*)mcCurImg.data,
+                mImageSize.height, mImageSize.width, mcCurImg.step, (float*)mcSADCost.data);
+}
+
+void StereoSGM::ShowDisparity() {
+    SGM4PathCalcCost(mP1, mP2, mGtau, mQ1, mQ2, mNumDisparity,
+                     mImageSize.height, mImageSize.width,
+                     (float*)mcSADCost.data, (float*)mcSGMCost.data);
+    Postprocessing((float*)mcSGMCost.data, mImageSize.height, mImageSize.width, mNumDisparity,
+                   (float*)mcDepth.data, mcDepth.step);
+    cv::Mat disparity;
+    mcDepth.download(disparity);
+    disparity.convertTo(disparity, CV_8U);
+    cv::imshow("disparity", disparity);
+    cv::waitKey(1);
 }

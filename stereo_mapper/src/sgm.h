@@ -10,9 +10,11 @@ public:
     ~StereoSGM();
     void InitIntrinsic(const cv::Size& image_size, const cv::Mat& Kl, const cv::Mat& Dl,
                        const cv::Mat& Kr, const cv::Mat& Dr, const Sophus::SE3d& Trl);
-    void InitIntrinsic(const cv::Size& image_size,const cv::Mat& K, const cv::Mat& D);
+    void InitIntrinsic(const cv::Size& image_size,const cv::Mat& K, const cv::Mat& D, float baseline);
     void InitReference(const cv::Mat& img_ref, const Sophus::SE3d& Tw_ref);
     void UpdateByMotion(const cv::Mat& img_cur, const Sophus::SE3d& Tw_cur);
+    void UpdateByMotionR(const cv::Mat& img_cur, const Sophus::SE3d& Tw_cur);
+    void ShowDisparity();
 private:
     // default setting
     bool mbIsStereo = false;
@@ -21,13 +23,19 @@ private:
 
     // sgm parameters setting
     int mNumDisparity = 64;
+    float mP1;
+    float mP2;
+    float mGtau;
+    float mQ1;
+    float mQ2;
 
     // camera coefficient
     int mImageArea;
+    float mbf;
     cv::Size mImageSize;
     cv::Mat mKl, mKr;
     cv::Mat mM1l, mM2l, mM1r, mM2r;
-    Sophus::SE3d mTrl, mTw_ref, mTref_w, mTw_cur;
+    Sophus::SE3d mTrl, mTlr, mTw_ref, mTref_w, mTw_cur;
 
     // gpu setting
     cv::cuda::GpuMat mcM1l, mcM2l, mcM1r, mcM2r;

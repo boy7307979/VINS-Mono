@@ -140,7 +140,171 @@ void SADCalcCost(int meas_cnt, int num_disparity, float bf,
     SADCalcCostKernel<<<grid, block>>>(meas_cnt, num_disparity, bf,
                                        d_H, d_h, height, width, cost);
 
+    cudaDeviceSynchronize();
+
     cudaFree(d_H);
     cudaFree(d_h);
+}
+
+__global__ void SGMCalcCostKernel(int num_disparity, size_t height, size_t width, int idx,
+                                  int start, int dx, int dy, int end, float p1, float p2, float tau_so,
+                                  float sgm_q1, float sgm_q2, float* sad_cost, float* sgm_cost) {
+    int xy[2] = {(int)blockIdx.x, (int)blockIdx.x};
+    xy[idx] = start;
+    int p_u = xy[0], p_v = xy[1];
+    int d = threadIdx.x;
+
+    __shared__ float *block_shared_array;
+    float* output_s = block_shared_array;
+    float* output_min = output_s + num_disparity;
+    float* input_s =  output_min + num_disparity;
+    float* input_min = input_s + num_disparity;
+
+    input_s[d] = input_min[d] = sad_cost[INDEX(p_v, p_u, d, width, num_disparity)];
+    __syncthreads();
+    // find input_s min
+    for(int i = (num_disparity >> 1); i > 0; i = (i >> 1)) {
+        if(d < i && d + i < num_disparity && input_min[d + i] < input_min[d])
+            input_min[d] = input_min[d + 1];
+        __syncthreads();
+    }
+
+    if(input_min[0] < 0.0f) {
+        input_s[d] = 0.0f;
+        sgm_cost[INDEX(p_v, p_u, d, width, num_disparity)] = input_s[d];
+        output_s[d] = output_min[d] = input_s[d];
+    }
+    else {
+        sgm_cost[INDEX(p_v, p_u, d, width, num_disparity)] += input_s[d];
+        output_s[d] = output_min[d] = input_s[d];
+    }
+    xy[0] += dx;
+    xy[1] += dy;
+
+    for(int k = 1; k < end; ++k, xy[0] += dx, xy[1] += dy) {
+        p_u = xy[0];
+        p_v = xy[1];
+
+        input_s[d] = input_min[d] = sad_cost[INDEX(p_v, p_u, d, width, num_disparity)];
+        __syncthreads();
+
+        for(int i = (num_disparity >> 1); i > 0; i = (i >> 1)) {
+            if(d < i && d + i < num_disparity) {
+                if(output_min[d + i] < output_min[d])
+                    output_min[d] = output_min[d + i];
+                if(input_min[d + i] < input_min[d])
+                    input_min[d] = input_min[d + i];
+                __syncthreads();
+            }
+        }
+
+        if(input_min[0] < 0.0f) {
+            input_s[d] = 0.0f;
+            __syncthreads();
+        }
+
+        float G = fabs(tex2D(tex2d_ref, p_u + 0.5, p_v + 0.5) -
+                       tex2D(tex2d_ref, p_u - dx + 0.5, p_v -dy + 0.5));
+        float P1 = p1, P2 = p2;
+        if(G <= tau_so) {
+            P1 *= sgm_q1;
+            P2 *= sgm_q2;
+        }
+
+        float cost = min(output_s[d], output_min[0] + P2);
+        if(d - 1 >=0)
+            cost = min(cost, output_s[d - 1]);
+        if(d + 1 < num_disparity)
+            cost = min(cost, output_s[d + 1]);
+
+        float val = input_s[d] + cost - output_min[0];
+        if(input_min[0] < 0.0f)
+            sgm_cost[INDEX(p_v, p_u, d, width, num_disparity)] = 0.0;
+        else
+            sgm_cost[INDEX(p_v, p_u, d, width, num_disparity)] += val;
+
+        output_min[d] = output_s[d] = val;
+        __syncthreads();
+    }
+}
+
+void SGM4PathCalcCost(float p1, float p2, float tau_so, float sgm_q1,
+                      float sgm_q2, int num_disparity, size_t height,
+                      size_t width, float* sad_cost, float* sgm_cost) {
+    SGMCalcCostKernel<<<height, num_disparity,
+            4 * num_disparity * sizeof (float)>>>(num_disparity, height, width,
+                                                  0, 0, 1, 0, width, p1, p2,
+                                                 tau_so, sgm_q1, sgm_q2, sad_cost,
+                                                 sgm_cost);
+    SGMCalcCostKernel<<<height, num_disparity,
+            4 * num_disparity * sizeof (float)>>>(num_disparity, height, width, 0,
+                                                  width - 1, -1, 0, width, p1, p2,
+                                                 tau_so, sgm_q1, sgm_q2, sad_cost,
+                                                 sgm_cost);
+    SGMCalcCostKernel<<<width, num_disparity,
+            4 * num_disparity * sizeof (float)>>>(num_disparity, height, width,
+                                                  1, 0, 0, 1, height, p1, p2,
+                                                 tau_so, sgm_q1, sgm_q2, sad_cost,
+                                                 sgm_cost);
+    SGMCalcCostKernel<<<width, num_disparity,
+            4 * num_disparity * sizeof (float)>>>(num_disparity, height, width, 1,
+                                                  height - 1, 0, -1, height, p1, p2,
+                                                 tau_so, sgm_q1, sgm_q2, sad_cost,
+                                                 sgm_cost);
+    cudaDeviceSynchronize();
+}
+
+__global__ void PostprocessingKernel(float* cost, size_t height, size_t width, int num_disparity,
+                                     float* dis_mat, size_t dis_step) {
+    const int p_u = blockIdx.x;
+    const int p_v = blockIdx.y;
+    const int d = threadIdx.x;
+    __shared__ float* shared_memory;
+
+    float* cost_ptr = cost + p_v * dis_step + p_u;
+
+    float* c = shared_memory;
+    float* c_min = shared_memory + num_disparity;
+    float* c_idx = c_min + num_disparity;
+    c[d] = c_min[d] = cost[INDEX(p_v, p_u, d, width, num_disparity)];
+    c_idx[d] = d;
+    __syncthreads();
+    for(int i = (num_disparity >> 1); i > 0; i = (i >> 1)) {
+        if(d < i && d + i < num_disparity && c_min[d + i] < c_min[d]) {
+            c_min[d] = c_min[d + i];
+            c_idx[d] = c_idx[d + i];
+        }
+        __syncthreads();
+    }
+
+    if(threadIdx.x == 0) {
+        float min_cost = c_min[0];
+        int min_idx = c_idx[0];
+
+        if(min_cost == 0 || min_idx == 0 || min_idx == num_disparity - 1
+                || c[min_idx - 1] + c[min_idx + 1] < 2 * min_cost) {
+            *cost_ptr = 0;
+        }
+        else {
+            float cost_pre = c[min_idx - 1];
+            float cost_post = c[min_idx + 1];
+            float a = cost_pre + cost_post - 2.0f * min_cost;
+            float b = cost_post - cost_pre;
+            float subpixel_idx = min_idx - b/(2*a);
+            *cost_ptr = subpixel_idx;
+        }
+    }
+}
+
+void Postprocessing(float* cost, size_t height, size_t width, int num_disparity,
+                    float* dis_mat, size_t dis_step) {
+    dim3 block(num_disparity);
+    dim3 grid(width, height);
+
+    PostprocessingKernel
+    <<<grid, block, num_disparity * 3 * sizeof(float)>>>
+    (cost, height, width, num_disparity, dis_mat, dis_step);
+
+    cudaDeviceSynchronize();
 }
 #undef INDEX
