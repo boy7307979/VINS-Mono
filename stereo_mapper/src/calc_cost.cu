@@ -22,13 +22,13 @@ ADCalcCostKernel(
     unsigned char *img_r, size_t pitch_r_warp,
     float *cost)
 {
-    const int tidx_base = blockDim.x * blockIdx.x;
+    const int tidx = blockIdx.x;
     const int tidy = blockIdx.y;
     // blockDim.x = 64
     // blockIdx.x = [0, 5]
     // blockIdx.y = [0, HEIGHT - 1]
     // threadIdx.x = [0, 63]
-    for (int k = 0, tidx = tidx_base; k < DEP_CNT; k++, tidx++)
+//    for (int k = 0, tidx = tidx_base; k < DEP_CNT; k++, tidx++)
         if (tidx >= 0 && tidx <= WIDTH - 1 && tidy >= 0 && tidy <= HEIGHT - 1)
         {
             float x = r11 * tidx + r12 * tidy + r13 * 1.0f;
@@ -74,13 +74,13 @@ ADCalcCostKernel(
                 if (measurement_cnt == 1 && (tidx == 0 || tidx == WIDTH - 1 || tidy == 0 || tidy == HEIGHT - 1))
                 {
                     *cost_ptr = -1.0f;
-                    continue;
+                    return;
                 }
 
                 float last_cost = *cost_ptr;
                 if (measurement_cnt != 1 && last_cost < 0)
                 {
-                    continue;
+                           return;
                 }
 
                 float tmp = 0.0f;
@@ -94,7 +94,7 @@ ADCalcCostKernel(
                     if (w < 0 || u < 0 || u > WIDTH - 1 || v < 0 || v > HEIGHT - 1)
                     {
                         *cost_ptr = -1.0f;
-                        continue;
+                              return;
                     }
 
                     tmp += fabs(tex2D(tex2Dleft, tidx+0.5f, tidy+0.5f) - tex2D(tex2Dright, u+0.5f, v+0.5f));
@@ -108,7 +108,7 @@ ADCalcCostKernel(
                     if (wu < 0 || uu < 0 || uu > WIDTH - 1 || vu < 0 || vu > HEIGHT - 1)
                     {
                         *cost_ptr = -1.0f;
-                        continue;
+                            return;
                     }
 
                     tmp += fabs(tex2D(tex2Dleft, tidx+0.5f, tidy + 1+0.5f) - tex2D(tex2Dright, uu+0.5f, vu+0.5f));
@@ -122,7 +122,7 @@ ADCalcCostKernel(
                     if (wd < 0 || ud < 0 || ud > WIDTH - 1 || vd < 0 || vd > HEIGHT - 1)
                     {
                         *cost_ptr = -1.0f;
-                        continue;
+                      return;
                     }
 
                     tmp += fabs(tex2D(tex2Dleft, tidx+0.5f, tidy - 1+0.5f) - tex2D(tex2Dright, ud+0.5f, vd+0.5f));
@@ -136,7 +136,7 @@ ADCalcCostKernel(
                     if (wl < 0 || ul < 0 || ul > WIDTH - 1 || vl < 0 || vl > HEIGHT - 1)
                     {
                         *cost_ptr = -1.0f;
-                        continue;
+                       return;
                     }
 
                     tmp += fabs(tex2D(tex2Dleft, tidx - 1+0.5f, tidy+0.5f) - tex2D(tex2Dright, ul+0.5f, vl+0.5f));
@@ -150,7 +150,7 @@ ADCalcCostKernel(
                     if (wr < 0 || ur < 0 || ur > WIDTH - 1 || vr < 0 || vr > HEIGHT - 1)
                     {
                         *cost_ptr = -1.0f;
-                        continue;
+                          return;
                     }
 
                     tmp += fabs(tex2D(tex2Dleft, tidx + 1+0.5f, tidy+0.5f) - tex2D(tex2Dright, ur+0.5f, vr+0.5f));
@@ -165,7 +165,7 @@ ADCalcCostKernel(
                     if (wul < 0 || uul < 0 || uul > WIDTH - 1 || vul < 0 || vul > HEIGHT - 1)
                     {
                         *cost_ptr = -1.0f;
-                        continue;
+                          return;
                     }
 
                     tmp += fabs(tex2D(tex2Dleft, tidx - 1+0.5f, tidy - 1+0.5f) - tex2D(tex2Dright, uul+0.5f, vul+0.5f));
@@ -179,7 +179,7 @@ ADCalcCostKernel(
                     if (wdr < 0 || udr < 0 || udr > WIDTH - 1 || vdr < 0 || vdr > HEIGHT - 1)
                     {
                         *cost_ptr = -1.0f;
-                        continue;
+                             return;
                     }
 
                     tmp += fabs(tex2D(tex2Dleft, tidx + 1+0.5f, tidy + 1+0.5f) - tex2D(tex2Dright, udr+0.5f, vdr+0.5f));
@@ -193,7 +193,7 @@ ADCalcCostKernel(
                     if (wld < 0 || uld < 0 || uld > WIDTH - 1 || vld < 0 || vld > HEIGHT - 1)
                     {
                         *cost_ptr = -1.0f;
-                        continue;
+                 return;
                     }
 
                     tmp += fabs(tex2D(tex2Dleft, tidx - 1+0.5f, tidy + 1+0.5f) - tex2D(tex2Dright, uld+0.5f, vld+0.5f));
@@ -207,7 +207,7 @@ ADCalcCostKernel(
                     if (wru < 0 || uru < 0 || uru > WIDTH - 1 || vru < 0 || vru > HEIGHT - 1)
                     {
                         *cost_ptr = -1.0f;
-                        continue;
+                           return;
                     }
 
                     tmp += fabs(tex2D(tex2Dleft, tidx + 1+0.5f, tidy - 1+0.5f) - tex2D(tex2Dright, uru+0.5f, vru+0.5f));
@@ -255,7 +255,7 @@ filterCostKernel(float *cost,
             int min_idx = c_idx[0];
 
             if (min_cost == 0 || min_idx == 0 || min_idx == DEP_CNT - 1 || c[min_idx - 1] + c[min_idx + 1] < 2 * min_cost * var_scale)
-                *p_dep = 1000.0f;
+                *p_dep = 0;
             else
             {
                 //printf("%f %f %f\n", c[min_idx - 1], c[min_idx], c[min_idx + 1]);
@@ -264,7 +264,7 @@ filterCostKernel(float *cost,
                 float a = cost_pre - 2.0f * min_cost + cost_post;
                 float b = -cost_pre + cost_post;
                 float subpixel_idx = min_idx - b / (2.0f * a);
-                *p_dep = 1.0f / (subpixel_idx * DEP_SAMPLE);
+                *p_dep = subpixel_idx;
             }
         }
     }
@@ -285,7 +285,7 @@ void ad_calc_cost(
     checkCudaErrors(cudaUnbindTexture(tex2Dright));
 
     dim3 numThreads = dim3(DEP_CNT, 1, 1); // block
-    dim3 numBlocks = dim3(iDivUp(WIDTH, DEP_CNT), HEIGHT); // grid
+    dim3 numBlocks = dim3(WIDTH, HEIGHT); // grid
 
     cudaChannelFormatDesc ca_desc0 = cudaCreateChannelDesc<float>();
     cudaChannelFormatDesc ca_desc1 = cudaCreateChannelDesc<float>();

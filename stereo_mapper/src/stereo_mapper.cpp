@@ -140,6 +140,10 @@ cv::Mat StereoMapper::output()
     t = cv::getTickCount();
     cv::Mat result;
     dep.download(result);
+    result.convertTo(result, CV_8U);
+    cv::namedWindow("ddd", cv::WINDOW_FREERATIO);
+    cv::imshow("ddd", result * 4);
+    cv::waitKey(1);
     printf("PW CUDA Time part 5: %fms\n", (cv::getTickCount() - t) * 1000 / cv::getTickFrequency());
     return result;
 }

@@ -9,7 +9,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <cv_bridge/cv_bridge.h>
-#include "stereo_matcher.h"
+#include "sgm.h"
 
 using namespace std;
 using namespace message_filters;
@@ -27,8 +27,8 @@ public:
         cv::FileStorage fs(filename, cv::FileStorage::READ);
         fs["image_L_topic"] >> image_l_topic;
         fs["image_R_topic"] >> image_r_topic;
+        mStereoSGM.ReadParameters(filename);
         fs.release();
-        mStereoMatcher.ReadParameters(filename);
     }
 
     void RegisterPub(ros::NodeHandle& nh) {
@@ -116,18 +116,20 @@ public:
             cv::Mat left_img = cv_bridge::toCvCopy(image_pair.first, "mono8")->image;
             cv::Mat right_img = cv_bridge::toCvCopy(image_pair.second, "mono8")->image;
             cv::Mat disparity, point_cloud, left_rect_img;
-            mStereoMatcher.compute(left_img, right_img, left_rect_img,
-                                   disparity, point_cloud);
-            SendCloud(image_pair.first, left_rect_img, point_cloud);
+            Sophus::SE3d T;
+            mStereoSGM.InitReference(left_img, T);
+            mStereoSGM.UpdateByMotionR(right_img, T);
+            mStereoSGM.ShowDisparity();
         }
     }
 
     std::string image_l_topic, image_r_topic;
     ImageBuffer mImageBuffer;
-    StereoMatcher mStereoMatcher;
+
     std::mutex mMutex;
     std::condition_variable mCV;
     ros::Publisher pub_point_cloud2;
+    StereoSGM mStereoSGM;
 };
 
 int main(int argc, char** argv) {

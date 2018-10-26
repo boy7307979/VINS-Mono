@@ -5,6 +5,7 @@ image_R_topic: "/cam1/image_raw"
 
 image_width: 752
 image_height: 480
+
 T_BCL: !!opencv-matrix
   cols: 4
   rows: 4
@@ -29,5 +30,12 @@ T_BCR: !!opencv-matrix
 intrinsics_R: [457.587, 456.134, 379.999, 255.238] #fu, fv, cu, cv
 distortion_coefficients_R: [-0.28368365,  0.07451284, -0.00010473, -3.55590700e-05]
 
-numDisparities: 64
-blockSize: 19
+baseline: 0.11 # (mm)
+
+num_disparities: 64
+P1: 16
+P2: 64
+Gtau: 8
+Q1: 1
+Q2: 1
+downsample: 1

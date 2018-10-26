@@ -908,7 +908,7 @@ void callback_raw_pose2(const geometry_msgs::PoseStampedConstPtr &cur_pose_ptr) 
         ROS_INFO("update costs: %fms", t_update.toc());
 
         result = mapper.output();
-
+#if 0
         ROS_INFO("publish to Fusion: %f", key_header.stamp.toSec());
         sendCloud(result, img1);
 
@@ -950,6 +950,7 @@ void callback_raw_pose2(const geometry_msgs::PoseStampedConstPtr &cur_pose_ptr) 
             pub_color_img_info.publish(camera_info);
             pub_disp_img_info.publish(camera_info);
         }
+#endif
     }
 }
 

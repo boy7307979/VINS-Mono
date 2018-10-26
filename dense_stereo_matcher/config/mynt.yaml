@@ -29,5 +29,12 @@ T_BCR: !!opencv-matrix
 intrinsics_R: [360.26500808807332987, 361.00061286165828278, 368.33314446451811364, 233.24107413011483914] #fu, fv, cu, cv
 distortion_coefficients_R: [-0.26040909867113921, 0.04667523101515141, 0.00099042424008858, -0.00061525011270181]
 
-numDisparities: 64
-blockSize: 19
+baseline: 0.12 # (mm)
+
+num_disparities: 64
+P1: 16
+P2: 64
+Gtau: 8
+Q1: 1
+Q2: 1
+downsample: 1
