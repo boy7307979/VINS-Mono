@@ -166,7 +166,7 @@ __global__ void SGMCalcCostKernel(int num_disparity, size_t height, size_t width
     // find input_s min
     for(int i = num_disparity/2 ; i > 0; i /= 2) {
         if(d < i && d + i < num_disparity && input_min[d + i] < input_min[d])
-            input_min[d] = input_min[d + 1];
+            input_min[d] = input_min[d + i];
         __syncthreads();
     }
 
@@ -195,8 +195,8 @@ __global__ void SGMCalcCostKernel(int num_disparity, size_t height, size_t width
                     output_min[d] = output_min[d + i];
                 if(input_min[d + i] < input_min[d])
                     input_min[d] = input_min[d + i];
-                __syncthreads();
             }
+            __syncthreads();
         }
 
         if(input_min[0] < 0.0f) {
@@ -237,18 +237,18 @@ void SGM4PathCalcCost(float p1, float p2, float tau_so, float sgm_q1,
                                                   0, 0, 1, 0, width, p1, p2,
                                                  tau_so, sgm_q1, sgm_q2, sad_cost,
                                                  sgm_cost);
-//    SGMCalcCostKernel<<<height, num_disparity>>>(num_disparity, height, width, 0,
-//                                                  width - 1, -1, 0, width, p1, p2,
-//                                                 tau_so, sgm_q1, sgm_q2, sad_cost,
-//                                                 sgm_cost);
-//    SGMCalcCostKernel<<<width, num_disparity>>>(num_disparity, height, width,
-//                                                  1, 0, 0, 1, height, p1, p2,
-//                                                 tau_so, sgm_q1, sgm_q2, sad_cost,
-//                                                 sgm_cost);
-//    SGMCalcCostKernel<<<width, num_disparity>>>(num_disparity, height, width, 1,
-//                                                  height - 1, 0, -1, height, p1, p2,
-//                                                 tau_so, sgm_q1, sgm_q2, sad_cost,
-//                                                 sgm_cost);
+    SGMCalcCostKernel<<<height, num_disparity>>>(num_disparity, height, width, 0,
+                                                  width - 1, -1, 0, width, p1, p2,
+                                                 tau_so, sgm_q1, sgm_q2, sad_cost,
+                                                 sgm_cost);
+    SGMCalcCostKernel<<<width, num_disparity>>>(num_disparity, height, width,
+                                                  1, 0, 0, 1, height, p1, p2,
+                                                 tau_so, sgm_q1, sgm_q2, sad_cost,
+                                                 sgm_cost);
+    SGMCalcCostKernel<<<width, num_disparity>>>(num_disparity, height, width, 1,
+                                                  height - 1, 0, -1, height, p1, p2,
+                                                 tau_so, sgm_q1, sgm_q2, sad_cost,
+                                                 sgm_cost);
     cudaDeviceSynchronize();
 }
 
