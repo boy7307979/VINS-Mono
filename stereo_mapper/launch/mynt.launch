@@ -3,5 +3,5 @@
     <node name="stereo_mapper" pkg="stereo_mapper" type="stereo_mapper" output="screen" launch-prefix="taskset -c 1">
     <param name="config_file" type="string" value="$(arg config_path)" />
     </node>
-    <include file="$(find chisel_ros)/launch/euroc.launch"/>
+    <include file="$(find chisel_ros)/launch/mynt.launch"/>
 </launch>

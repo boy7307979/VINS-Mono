@@ -12,8 +12,8 @@
         <param name="use_color" value="true"/>
         <param name="carving_dist_m" value="0.00"/>
         <param name="voxel_resolution_m" value="0.1"/>
-        <param name="far_plane_dist" value="5.0"/>
-        <param name="near_plane_dist" value="0.3"/>
+        <param name="far_plane_dist" value="1.0"/>
+        <param name="near_plane_dist" value="0.5"/>
         <param name="base_transform" value="/world"/>
         <param name="depth_image_transform" value="/ref_frame"/>
         <param name="color_image_transform" value="/ref_frame"/>

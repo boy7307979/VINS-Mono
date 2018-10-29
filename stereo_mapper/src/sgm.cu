@@ -294,18 +294,11 @@ __global__ void PostprocessingKernel(float* cost, size_t height, size_t width, i
             float b = cost_post - cost_pre;
             float subpixel_idx = min_idx - b/(2.0f * a);
             float z = bf / subpixel_idx;
-            if(z < 3.0) {
-                point_cloud_ptr[0] = z*(p_u - cx)/fx;
-                point_cloud_ptr[1] = z*(p_v - cy)/fy;
-                point_cloud_ptr[2] = z;
-                *depth_map_ptr = z;
-            }
-            else {
-                point_cloud_ptr[0] = -1;
-                point_cloud_ptr[1] = -1;
-                point_cloud_ptr[2] = -1;
-                *depth_map_ptr = -1;
-            }
+
+            point_cloud_ptr[0] = z*(p_u - cx)/fx;
+            point_cloud_ptr[1] = z*(p_v - cy)/fy;
+            point_cloud_ptr[2] = z;
+            *depth_map_ptr = z;
         }
     }
 }
