@@ -1,6 +1,0 @@
-<launch>
-    <arg name="config_path" default = "$(find dense_stereo_matcher)/config/euroc.yaml" />
-    <node name="dense_stereo_matcher" pkg="dense_stereo_matcher" type="dense_stereo_matcher" output="screen" launch-prefix="xterm -e gdb -ex run --args ">
-        <param name="config_file" type="string" value="$(arg config_path)" />
-    </node>
-</launch>

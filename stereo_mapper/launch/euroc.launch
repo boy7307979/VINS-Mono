@@ -1,12 +1,7 @@
 <launch>
+    <arg name="config_path" default = "$(find stereo_mapper)/config/euroc.yaml" />
     <node name="stereo_mapper" pkg="stereo_mapper" type="stereo_mapper" output="screen" launch-prefix="taskset -c 1">
-        <param name="calib_dir" type="string" value="$(find stereo_mapper)/calib/" />
-        <param name="cam_name" type="string" value="euroc" />
-        <remap from="~image_l" to="/cam0/image_raw" />
-        <remap from="~image_r" to="/cam1/image_raw" />
-        <remap from="~image_f" to="/feature_tracker/image" />
-        <remap from="~ref_pose" to="/vins_estimator/ref_pose" />
-        <remap from="~cur_pose" to="/vins_estimator/cur_pose" />
+    <param name="config_file" type="string" value="$(arg config_path)" />
     </node>
     <include file="$(find chisel_ros)/launch/euroc.launch"/>
 </launch>

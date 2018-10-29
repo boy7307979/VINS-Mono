@@ -2,19 +2,31 @@
 #include <memory>
 #include <opencv2/opencv.hpp>
 #include <sophus/se3.hpp>
+#include <opencv2/core/eigen.hpp>
 
 class StereoSGM {
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     StereoSGM();
     ~StereoSGM();
+
+    void ReadParameters(const std::string& filename);
     void InitIntrinsic(const cv::Size& image_size, const cv::Mat& Kl, const cv::Mat& Dl,
-                       const cv::Mat& Kr, const cv::Mat& Dr, const Sophus::SE3d& Trl);
+                       const cv::Mat& Kr, const cv::Mat& Dr, const Sophus::SE3d& Trl, float baseline);
     void InitIntrinsic(const cv::Size& image_size,const cv::Mat& K, const cv::Mat& D, float baseline);
     void InitReference(const cv::Mat& img_ref, const Sophus::SE3d& Tw_ref);
     void UpdateByMotion(const cv::Mat& img_cur, const Sophus::SE3d& Tw_cur);
     void UpdateByMotionR(const cv::Mat& img_cur, const Sophus::SE3d& Tw_cur);
-    void ShowDisparity();
+    void GetResult(cv::Mat* unimg_ref = nullptr, cv::Mat* point_cloud = nullptr,
+                   cv::Mat* depth_map = nullptr);
+
+    inline const cv::Mat& Kl() const {
+        return mKl;
+    }
+
+    inline const cv::Size& ImageSize() const {
+        return mImageSize;
+    }
 private:
     // default setting
     bool mbIsStereo = false;
@@ -35,16 +47,16 @@ private:
     cv::Size mImageSize;
     cv::Mat mKl, mKr;
     cv::Mat mM1l, mM2l, mM1r, mM2r;
-    Sophus::SE3d mTrl, mTlr, mTw_ref, mTref_w, mTw_cur;
+    Sophus::SE3d mTrl, mTlr, mTw_ref, mTref_w, mTw_cur, mTcur_w;
 
     // gpu setting
     cv::cuda::GpuMat mcM1l, mcM2l, mcM1r, mcM2r;
     cv::cuda::GpuMat mcRefImg, mcCurImg; // undistort image
     cv::cuda::GpuMat mcSADCost, mcSGMCost;
-    cv::cuda::GpuMat mcDepth;
+    cv::cuda::GpuMat mcPointCloud, mcDepth;
 
     // debug info
-    bool mbDebug = true;
+    bool mbDebug = false;
     cv::Mat mRefImg, mCurImg;
 };
 

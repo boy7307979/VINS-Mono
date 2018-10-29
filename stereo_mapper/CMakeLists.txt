@@ -52,6 +52,7 @@ cuda_add_executable(stereo_mapper
     src/parameters.cpp
     src/sgm.cu
     src/sgm.cpp
+    src/test.cpp
     )
 
 add_dependencies(stereo_mapper ${PROJECT_NAME}_gencfg)

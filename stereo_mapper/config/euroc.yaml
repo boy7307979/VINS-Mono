@@ -2,6 +2,8 @@
 
 image_L_topic: "/cam0/image_raw"
 image_R_topic: "/cam1/image_raw"
+ref_pose_topic: "/vins_estimator/ref_pose"
+cur_pose_topic: "/vins_estimator/cur_pose"
 
 image_width: 752
 image_height: 480

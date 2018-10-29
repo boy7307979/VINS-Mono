@@ -998,6 +998,7 @@ void callback_debug(stereo_mapper::debugConfig &config, uint32_t level)
     sendCloud(result, img1);
 }
 
+#if 0
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "stereo_mapper");
@@ -1106,3 +1107,4 @@ int main(int argc, char **argv)
     ros::spin();
     return 0;
 }
+#endif

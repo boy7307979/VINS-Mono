@@ -11,4 +11,9 @@ void SGM4PathCalcCost(float p1, float p2, float tau_so, float sgm_q1, float sgm_
                       float* sad_cost, float* sgm_cost);
 
 void Postprocessing(float* cost, size_t height, size_t width, int num_disparity,
-                    float* depth, size_t depth_step);
+                    float bf, float fx, float fy, float cx, float cy,
+                    float* point_cloud, size_t point_cloud_step,
+                    float* depth_map, size_t depth_map_step);
+
+void WinnerTakesAllDisparity(float* cost, size_t height, size_t width, int num_disparity,
+                             unsigned char* dis_mat, size_t dis_step);

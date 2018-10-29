@@ -2,6 +2,8 @@
 
 image_L_topic: "/mynteye/left/image_raw"
 image_R_topic: "/mynteye/right/image_raw"
+ref_pose_topic: "/vins_estimator/ref_pose"
+cur_pose_topic: "/vins_estimator/cur_pose"
 
 image_width: 752
 image_height: 480
